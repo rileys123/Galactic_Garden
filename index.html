@@ -34,6 +34,7 @@
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
+        const collisionDistance = 5;
 
         let mouse = {
             x: null,
@@ -49,15 +50,27 @@
             constructor(x, y, color) {
                 this.x = x;
                 this.y = y;
+                this.mass = 1;
+                this.radius = 2;
                 this.vx = (Math.random() - 0.5) * 5;
                 this.vy = (Math.random() - 0.5) * 5;
                 this.color = color;
+                this.isStar = false;
             }
 
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                // Apply glow for stars
+                if (this.isStar) {
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.fillStyle = this.isStar ? 'white' : this.color;
                 ctx.fill();
             }
 
@@ -79,6 +92,29 @@
                 this.x += this.vx;
                 this.y += this.vy;
             }
+
+            // Method to check for collision and merge
+            checkCollision(other) {
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Collision detected if the distance is less than the sum of their radii
+                if (distance < this.radius + other.radius) {
+                    // This particle absorbs the other
+                    this.mass += other.mass;
+                    // Recalculate radius based on mass
+                    this.radius = Math.cbrt(this.mass) * 2;
+
+                    // Check for star formation
+                    if (this.mass > 50) {
+                        this.isStar = true;
+                        this.color = `hsl(60, 100%, 80%)`; // Star color (a bright yellow/white)
+                    }
+                    return true;
+                }
+                return false;
+            }
         }
 
         function init() {
@@ -87,22 +123,17 @@
                 const y = Math.random() * canvas.height;
                 let color;
 
-                // Create a random number to decide the color
                 const colorChoice = Math.random();
-
                 if (colorChoice < 0.8) {
-                    // 80% chance for blues and purples
-                    const hue = Math.floor(Math.random() * 70) + 220; // Hue between 220 (blue) and 290 (purple)
-                    const saturation = Math.floor(Math.random() * 30) + 70; // 70-100% saturation
-                    const lightness = Math.floor(Math.random() * 30) + 50; // 50-80% lightness
+                    const hue = Math.floor(Math.random() * 70) + 220;
+                    const saturation = Math.floor(Math.random() * 30) + 70;
+                    const lightness = Math.floor(Math.random() * 30) + 50;
                     color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
                 } else if (colorChoice < 0.95) {
-                    // 15% chance for whites/light gray
-                    const lightness = Math.floor(Math.random() * 20) + 80; // 80-100% lightness
+                    const lightness = Math.floor(Math.random() * 20) + 80;
                     color = `hsl(0, 0%, ${lightness}%)`;
                 } else {
-                    // 5% chance for reds and oranges
-                    const hue = Math.floor(Math.random() * 40); // Hue between 0 (red) and 40 (orange)
+                    const hue = Math.floor(Math.random() * 40);
                     const saturation = Math.floor(Math.random() * 30) + 70;
                     const lightness = Math.floor(Math.random() * 30) + 50;
                     color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
@@ -113,13 +144,24 @@
         }
 
         function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Faint trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (const particle of particles) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
                 particle.update();
+                
+                // Check for particle-to-particle collisions
+                for (let j = i - 1; j >= 0; j--) {
+                    const otherParticle = particles[j];
+                    if (particle.checkCollision(otherParticle)) {
+                        particles.splice(j, 1);
+                        i--; // Adjust index after removing an item
+                    }
+                }
                 particle.draw();
             }
-
             requestAnimationFrame(animate);
         }
 
