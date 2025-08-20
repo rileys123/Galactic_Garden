@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>The Incomplete Garden</title>
+    <title>Galactic Attraction</title>
     <style>
         body {
-            background-color: #333;
+            background-color: #000;
             margin: 0;
             display: flex;
             justify-content: center;
@@ -14,9 +14,7 @@
             overflow: hidden;
         }
         canvas {
-            background-color: #555;
-            border: 2px solid #fff;
-            cursor: none;
+            background-color: #000;
         }
     </style>
 </head>
@@ -26,14 +24,15 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        canvas.width = window.innerWidth * 0.8;
-        canvas.height = window.innerHeight * 0.8;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
         const particles = [];
-        const particleCount = 500;
-        const attractionRadius = 100;
-        const attractionStrength = 0.05;
+        const particleCount = 2000;
+        const attractionRadius = 150;
+        const mouseAttractionStrength = 0.05;
         const friction = 0.95;
+        const collisionDistance = 5;
 
         let mouse = {
             x: null,
@@ -41,45 +40,105 @@
         };
 
         window.addEventListener('mousemove', (event) => {
-            mouse.x = event.x;
-            mouse.y = event.y;
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
         });
 
         class Particle {
             constructor(x, y, color) {
                 this.x = x;
                 this.y = y;
-                this.vx = (Math.random() - 0.5) * 5;
-                this.vy = (Math.random() - 0.5) * 5;
+                this.mass = 1;
+                this.radius = 2;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
                 this.color = color;
+                this.isStar = false;
             }
 
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.isStar ? 'white' : this.color;
+                ctx.shadowColor = this.isStar ? 'white' : 'transparent';
+                ctx.shadowBlur = this.isStar ? 15 : 0;
                 ctx.fill();
             }
 
-            update() {
+            update(planets) {
+                // Apply mouse attraction
                 const dx = mouse.x - this.x;
                 const dy = mouse.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 if (distance < attractionRadius) {
-                    const forceX = dx / distance * attractionStrength;
-                    const forceY = dy / distance * attractionStrength;
+                    const forceX = dx / distance * mouseAttractionStrength;
+                    const forceY = dy / distance * mouseAttractionStrength;
                     this.vx += forceX;
                     this.vy += forceY;
                 }
 
+                // Apply planet gravity
+                for (const planet of planets) {
+                    const pDx = planet.x - this.x;
+                    const pDy = planet.y - this.y;
+                    const pDistance = Math.sqrt(pDx * pDx + pDy * pDy);
+
+                    const gravityForce = planet.gravity / (pDistance * pDistance);
+                    this.vx += pDx / pDistance * gravityForce;
+                    this.vy += pDy / pDistance * gravityForce;
+                }
+
+                // Apply friction
                 this.vx *= friction;
                 this.vy *= friction;
 
+                // Update position
                 this.x += this.vx;
                 this.y += this.vy;
             }
+
+            // A method to check for collision and merge
+            checkCollision(other) {
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < collisionDistance) {
+                    // Simple merge: this particle absorbs the other
+                    this.mass += other.mass;
+                    this.radius = Math.cbrt(this.mass) * 2; // Cube root for a more realistic size increase
+
+                    if (this.mass > 200) {
+                        this.isStar = true;
+                    }
+                    return true;
+                }
+                return false;
+            }
         }
+
+        class Planet {
+            constructor(x, y, radius, color, gravity) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.gravity = gravity;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        const planets = [
+            new Planet(canvas.width / 4, canvas.height / 3, 25, 'lightblue', 500),
+            new Planet(canvas.width * 0.75, canvas.height * 0.75, 40, 'orange', 1000)
+        ];
 
         function init() {
             for (let i = 0; i < particleCount; i++) {
@@ -91,13 +150,28 @@
         }
 
         function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Faint trail effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (const particle of particles) {
-                particle.update();
-                particle.draw();
+            // Draw planets first
+            for (const planet of planets) {
+                planet.draw();
             }
 
+            for (let i = 0; i < particles.length; i++) {
+                const particle = particles[i];
+                particle.update(planets);
+                particle.draw();
+
+                // Check for particle-to-particle collisions
+                for (let j = i + 1; j < particles.length; j++) {
+                    const otherParticle = particles[j];
+                    if (particle.checkCollision(otherParticle)) {
+                        particles.splice(j, 1);
+                        j--; // Adjust index after removing an item
+                    }
+                }
+            }
             requestAnimationFrame(animate);
         }
 
