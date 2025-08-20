@@ -31,10 +31,12 @@
 
         const particles = [];
         const particleCount = 500;
+        const minParticleCount = 300;
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
         const collisionDistance = 5;
+        const minStarsForConstellation = 3;
 
         let mouse = {
             x: null,
@@ -59,18 +61,42 @@
             }
 
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                
-                // Apply glow for stars
                 if (this.isStar) {
-                    ctx.shadowColor = 'white';
-                    ctx.shadowBlur = 10;
+                    this.drawStar();
                 } else {
-                    ctx.shadowBlur = 0;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
                 }
+            }
 
-                ctx.fillStyle = this.isStar ? 'white' : this.color;
+            drawStar() {
+                ctx.beginPath();
+                const outerRadius = this.radius * 2;
+                const innerRadius = this.radius;
+                let rot = Math.PI / 2 * 3;
+                let x = this.x;
+                let y = this.y;
+                let step = Math.PI / 5;
+
+                ctx.moveTo(x, y - outerRadius);
+                for (let i = 0; i < 5; i++) {
+                    x = this.x + Math.cos(rot) * outerRadius;
+                    y = this.y + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+
+                    x = this.x + Math.cos(rot) * innerRadius;
+                    y = this.y + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.lineTo(this.x, this.y - outerRadius);
+                ctx.closePath();
+                ctx.fillStyle = 'white';
+                ctx.shadowColor = 'white';
+                ctx.shadowBlur = 15;
                 ctx.fill();
             }
 
@@ -93,23 +119,18 @@
                 this.y += this.vy;
             }
 
-            // Method to check for collision and merge
             checkCollision(other) {
                 const dx = other.x - this.x;
                 const dy = other.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Collision detected if the distance is less than the sum of their radii
                 if (distance < this.radius + other.radius) {
-                    // This particle absorbs the other
                     this.mass += other.mass;
-                    // Recalculate radius based on mass
                     this.radius = Math.cbrt(this.mass) * 2;
 
-                    // Check for star formation
                     if (this.mass > 50) {
                         this.isStar = true;
-                        this.color = `hsl(60, 100%, 80%)`; // Star color (a bright yellow/white)
+                        this.color = `hsl(60, 100%, 80%)`;
                     }
                     return true;
                 }
@@ -117,51 +138,83 @@
             }
         }
 
+        function drawConstellations() {
+            const stars = particles.filter(p => p.isStar);
+            if (stars.length >= minStarsForConstellation) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < stars.length; i++) {
+                    for (let j = i + 1; j < stars.length; j++) {
+                        const starA = stars[i];
+                        const starB = stars[j];
+                        const distance = Math.sqrt(Math.pow(starA.x - starB.x, 2) + Math.pow(starA.y - starB.y, 2));
+                        if (distance < 250) {
+                            ctx.moveTo(starA.x, starA.y);
+                            ctx.lineTo(starB.x, starB.y);
+                        }
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+        
+        function createParticle() {
+             const x = Math.random() * canvas.width;
+             const y = Math.random() * canvas.height;
+             let color;
+
+             const colorChoice = Math.random();
+             if (colorChoice < 0.8) {
+                 const hue = Math.floor(Math.random() * 70) + 220;
+                 const saturation = Math.floor(Math.random() * 30) + 70;
+                 const lightness = Math.floor(Math.random() * 30) + 50;
+                 color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+             } else if (colorChoice < 0.95) {
+                 const lightness = Math.floor(Math.random() * 20) + 80;
+                 color = `hsl(0, 0%, ${lightness}%)`;
+             } else {
+                 const hue = Math.floor(Math.random() * 40);
+                 const saturation = Math.floor(Math.random() * 30) + 70;
+                 const lightness = Math.floor(Math.random() * 30) + 50;
+                 color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+             }
+             
+             particles.push(new Particle(x, y, color));
+        }
+
+        function populateParticles() {
+            if (particles.length < minParticleCount) {
+                createParticle();
+            }
+        }
+
         function init() {
             for (let i = 0; i < particleCount; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                let color;
-
-                const colorChoice = Math.random();
-                if (colorChoice < 0.8) {
-                    const hue = Math.floor(Math.random() * 70) + 220;
-                    const saturation = Math.floor(Math.random() * 30) + 70;
-                    const lightness = Math.floor(Math.random() * 30) + 50;
-                    color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-                } else if (colorChoice < 0.95) {
-                    const lightness = Math.floor(Math.random() * 20) + 80;
-                    color = `hsl(0, 0%, ${lightness}%)`;
-                } else {
-                    const hue = Math.floor(Math.random() * 40);
-                    const saturation = Math.floor(Math.random() * 30) + 70;
-                    const lightness = Math.floor(Math.random() * 30) + 50;
-                    color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-                }
-                
-                particles.push(new Particle(x, y, color));
+                createParticle();
             }
         }
 
         function animate() {
-            // Faint trail effect
             ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawConstellations();
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const particle = particles[i];
                 particle.update();
                 
-                // Check for particle-to-particle collisions
                 for (let j = i - 1; j >= 0; j--) {
                     const otherParticle = particles[j];
                     if (particle.checkCollision(otherParticle)) {
                         particles.splice(j, 1);
-                        i--; // Adjust index after removing an item
+                        i--;
                     }
                 }
                 particle.draw();
             }
+            populateParticles();
             requestAnimationFrame(animate);
         }
 
