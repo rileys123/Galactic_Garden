@@ -46,7 +46,7 @@
         const blackHoles = [];
         const constellations = [];
 
-        let particleIdCounter = 0; // A unique ID for each particle
+        let particleIdCounter = 0;
 
         const particleCount = 500;
         const minParticleCount = 300;
@@ -54,8 +54,8 @@
         const attractionStrength = 0.05;
         const friction = 0.95;
         const collisionDistance = 5;
-        const starMassThreshold = 25; // Lowered threshold
-        const supernovaMassThreshold = 200;
+        const starMassThreshold = 25;
+        const supernovaMassThreshold = 120; // Lowered threshold
         const blackHoleGravity = 2000;
 
         let mouse = {
@@ -188,7 +188,7 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
-                this.timer = 300;
+                this.timer = 360; // Increased timer
             }
 
             draw() {
