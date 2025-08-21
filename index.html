@@ -52,10 +52,9 @@
         const attractionStrength = 0.05;
         const friction = 0.95;
         const collisionDistance = 5;
-        const starMassThreshold = 75;
+        const starMassThreshold = 50; // New lower threshold
         const supernovaMassThreshold = 200;
         const blackHoleGravity = 2000;
-        const minStarsForConstellation = 3;
 
         let mouse = {
             x: null,
@@ -89,7 +88,7 @@
                     ctx.shadowColor = 'yellow';
                     ctx.shadowBlur = 50;
                     ctx.fill();
-                    ctx.shadowBlur = 0; // Reset shadow for other objects
+                    ctx.shadowBlur = 0;
                 } else if (this.isStar) {
                     this.drawStar();
                 } else {
@@ -132,7 +131,6 @@
             }
 
             update() {
-                // Apply mouse attraction
                 const dx = mouse.x - this.x;
                 const dy = mouse.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -144,7 +142,6 @@
                     this.vy += forceY;
                 }
 
-                // Apply black hole gravity
                 for (const blackHole of blackHoles) {
                     const bhDx = blackHole.x - this.x;
                     const bhDy = blackHole.y - this.y;
@@ -172,7 +169,7 @@
 
                     if (this.mass > supernovaMassThreshold) {
                         this.isSupernova = true;
-                        this.supernovaTimer = 60; // 60 frames for the supernova to last
+                        this.supernovaTimer = 60;
                     } else if (this.mass > starMassThreshold) {
                         this.isStar = true;
                         this.color = `hsl(60, 100%, 80%)`;
@@ -188,6 +185,7 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
+                this.timer = 180; // Black hole exists for 3 seconds (180 frames)
             }
 
             draw() {
@@ -221,7 +219,6 @@
                 }
                 ctx.stroke();
 
-                // Draw constellation name
                 if (constellation.name) {
                     const avgX = constellation.stars.reduce((sum, s) => sum + s.x, 0) / constellation.stars.length;
                     const avgY = constellation.stars.reduce((sum, s) => sum + s.y, 0) / constellation.stars.length;
@@ -234,7 +231,7 @@
         
         function checkAndNameConstellations() {
             const stars = particles.filter(p => p.isStar);
-            if (stars.length >= minStarsForConstellation) {
+            if (stars.length >= 3) {
                 const potentialConstellation = [];
                 for (const star of stars) {
                     const isPartOfExisting = constellations.some(c => c.stars.includes(star));
@@ -242,7 +239,7 @@
                         potentialConstellation.push(star);
                     }
                 }
-                if (potentialConstellation.length >= minStarsForConstellation) {
+                if (potentialConstellation.length >= 3) {
                     const name = prompt("A new constellation has formed! What do you want to name it?");
                     if (name) {
                         const newConstellation = { stars: potentialConstellation, name: name };
@@ -277,13 +274,15 @@
 
         function populateParticles() {
             if (particles.length < minParticleCount) {
-                createParticle();
+                for(let i = 0; i < 5; i++) { // Adds 5 particles at a time
+                    createParticle();
+                }
             }
         }
 
         function updateMassDisplay() {
             totalMass = particles.filter(p => p.isStar).reduce((sum, p) => sum + p.mass, 0) + 
-                        blackHoles.length * 500; // Add an arbitrary mass for black holes
+                        blackHoles.length * 500;
             massDisplay.textContent = Math.round(totalMass);
         }
 
@@ -299,8 +298,22 @@
 
             drawConstellations();
             
-            for (const blackHole of blackHoles) {
+            for (let i = blackHoles.length - 1; i >= 0; i--) {
+                const blackHole = blackHoles[i];
                 blackHole.draw();
+                blackHole.timer--;
+                if (blackHole.timer <= 0) {
+                    const starParticle = new Particle(blackHole.x, blackHole.y, 'white');
+                    starParticle.isStar = true;
+                    starParticle.mass = 50;
+                    starParticle.radius = Math.cbrt(starParticle.mass) * 2;
+                    particles.push(starParticle);
+                    
+                    for (let j = 0; j < 10; j++) {
+                        createParticle(blackHole.x, blackHole.y);
+                    }
+                    blackHoles.splice(i, 1);
+                }
             }
 
             for (let i = particles.length - 1; i >= 0; i--) {
