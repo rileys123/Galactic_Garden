@@ -253,7 +253,7 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
-                this.timer = 300;
+                this.timer = 240;
             }
 
             draw() {
@@ -374,7 +374,7 @@
                     starParticle.radius = Math.cbrt(starParticle.mass) * 2;
                     particles.push(starParticle);
                     
-                    for (let j = 0; j < 50; j++) {
+                    for (let j = 0; j < 20; j++) {
                         createParticle(blackHole.x, blackHole.y);
                     }
                     blackHoles.splice(i, 1);
