@@ -97,14 +97,14 @@
         canvas.width = window.innerWidth * 0.8;
         canvas.height = window.innerHeight * 0.8;
 
-        let particles = [];
-        let blackHoles = [];
+        const particles = [];
+        const blackHoles = [];
         const constellations = [];
 
         let particleIdCounter = 0;
 
         const particleCount = 500;
-        const minParticleCount = 100;
+        const minParticleCount = 300;
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
@@ -363,8 +363,8 @@
 
             drawConstellations();
             
-            // Fixed black hole logic using filter
-            blackHoles = blackHoles.filter(blackHole => {
+            for (let i = blackHoles.length - 1; i >= 0; i--) {
+                const blackHole = blackHoles[i];
                 blackHole.draw();
                 blackHole.timer--;
                 if (blackHole.timer <= 0) {
@@ -374,13 +374,12 @@
                     starParticle.radius = Math.cbrt(starParticle.mass) * 2;
                     particles.push(starParticle);
                     
-                    for (let j = 0; j < 75; j++) {
+                    for (let j = 0; j < 10; j++) {
                         createParticle(blackHole.x, blackHole.y);
                     }
-                    return false; // Remove this black hole
+                    blackHoles.splice(i, 1);
                 }
-                return true; // Keep this black hole
-            });
+            }
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const particle = particles[i];
