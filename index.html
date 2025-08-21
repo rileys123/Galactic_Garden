@@ -104,7 +104,7 @@
         let particleIdCounter = 0;
 
         const particleCount = 500;
-        const minParticleCount = 300;
+        const minParticleCount = 100; // Lowered threshold for regeneration
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
@@ -302,17 +302,12 @@
         function checkAndNameConstellations() {
             const stars = particles.filter(p => p.isStar);
             if (stars.length >= 3) {
-                const potentialConstellationStars = [];
-                for (const star of stars) {
-                    const isPartOfExisting = constellations.some(c => c.starIds.includes(star.id));
-                    if (!isPartOfExisting) {
-                        potentialConstellationStars.push(star);
-                    }
-                }
-                if (potentialConstellationStars.length >= 3) {
+                const newStars = stars.filter(star => !constellations.some(c => c.starIds.includes(star.id)));
+                
+                if (newStars.length >= 3) {
                     const name = prompt("A new constellation has formed! What do you want to name it?");
                     if (name) {
-                        const newConstellation = { starIds: potentialConstellationStars.map(s => s.id), name: name };
+                        const newConstellation = { starIds: newStars.map(s => s.id), name: name };
                         constellations.push(newConstellation);
                     }
                 }
@@ -379,7 +374,7 @@
                     starParticle.radius = Math.cbrt(starParticle.mass) * 2;
                     particles.push(starParticle);
                     
-                    for (let j = 0; j < 10; j++) {
+                    for (let j = 0; j < 75; j++) { // Increased particle spawn count
                         createParticle(blackHole.x, blackHole.y);
                     }
                     blackHoles.splice(i, 1);
