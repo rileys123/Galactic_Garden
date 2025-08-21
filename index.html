@@ -27,6 +27,45 @@
             font-size: 1.2em;
             text-shadow: 2px 2px 5px #000;
         }
+        #intro-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+        }
+        .modal-content {
+            background-color: #1a1a1a;
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #fff;
+            max-width: 600px;
+        }
+        .modal-content h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        .modal-content p {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        #start-button {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -34,10 +73,26 @@
     <div id="ui">
         Total Mass: <span id="mass-display">0</span>
     </div>
+    <div id="intro-modal">
+        <div class="modal-content">
+            <h2>Welcome to The Galactic Garden!</h2>
+            <p><strong>The Goal:</strong> Grow a thriving cosmic ecosystem by forming stars, black holes, and constellations.</p>
+            <p><strong>How to Play:</strong>
+                <br>Move your mouse to attract tiny particles.
+                <br>As particles collide and merge, they gain mass.
+                <br>When they reach a certain mass, they will form **stars**.
+                <br>Continue growing a star and it might go **supernova**, then collapse into a powerful **black hole**.
+                <br>Don't worry, black holes eventually explode into new stars and particles.
+                <br>And if enough stars come together, you can even name a **constellation**!</p>
+            <button id="start-button">Start Game</button>
+        </div>
+    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const massDisplay = document.getElementById('mass-display');
+        const introModal = document.getElementById('intro-modal');
+        const startButton = document.getElementById('start-button');
 
         canvas.width = window.innerWidth * 0.8;
         canvas.height = window.innerHeight * 0.8;
@@ -55,7 +110,7 @@
         const friction = 0.95;
         const collisionDistance = 5;
         const starMassThreshold = 25;
-        const supernovaMassThreshold = 120; // Lowered threshold
+        const supernovaMassThreshold = 120;
         const blackHoleGravity = 2000;
 
         let mouse = {
@@ -63,10 +118,20 @@
             y: null
         };
         let totalMass = 0;
+        let gameStarted = false;
 
         window.addEventListener('mousemove', (event) => {
-            mouse.x = event.x;
-            mouse.y = event.y;
+            if (gameStarted) {
+                mouse.x = event.x;
+                mouse.y = event.y;
+            }
+        });
+
+        startButton.addEventListener('click', () => {
+            introModal.style.display = 'none';
+            gameStarted = true;
+            init();
+            animate();
         });
 
         class Particle {
@@ -188,7 +253,7 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
-                this.timer = 360; // Increased timer
+                this.timer = 360;
             }
 
             draw() {
@@ -352,9 +417,6 @@
             checkAndNameConstellations();
             requestAnimationFrame(animate);
         }
-
-        init();
-        animate();
     </script>
 </body>
 </html>
