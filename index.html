@@ -72,6 +72,13 @@
             }
 
             drawStar() {
+                // Save the current canvas state (no glow)
+                ctx.save();
+                
+                // Apply glow properties
+                ctx.shadowColor = 'white';
+                ctx.shadowBlur = 15;
+                
                 ctx.beginPath();
                 const outerRadius = this.radius * 2;
                 const innerRadius = this.radius;
@@ -95,9 +102,10 @@
                 ctx.lineTo(this.x, this.y - outerRadius);
                 ctx.closePath();
                 ctx.fillStyle = 'white';
-                ctx.shadowColor = 'white';
-                ctx.shadowBlur = 15;
                 ctx.fill();
+                
+                // Restore the canvas state to what it was before the glow
+                ctx.restore();
             }
 
             update() {
