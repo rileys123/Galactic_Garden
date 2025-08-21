@@ -12,36 +12,56 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
+            font-family: sans-serif;
+            color: #fff;
         }
         canvas {
             background-color: #000;
             border: 2px solid #fff;
             cursor: none;
         }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.2em;
+            text-shadow: 2px 2px 5px #000;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        Total Mass: <span id="mass-display">0</span>
+    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const massDisplay = document.getElementById('mass-display');
 
         canvas.width = window.innerWidth * 0.8;
         canvas.height = window.innerHeight * 0.8;
 
         const particles = [];
+        const blackHoles = [];
+        const constellations = [];
+
         const particleCount = 500;
         const minParticleCount = 300;
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
         const collisionDistance = 5;
+        const starMassThreshold = 75;
+        const supernovaMassThreshold = 200;
+        const blackHoleGravity = 2000;
         const minStarsForConstellation = 3;
 
         let mouse = {
             x: null,
             y: null
         };
+        let totalMass = 0;
 
         window.addEventListener('mousemove', (event) => {
             mouse.x = event.x;
@@ -58,10 +78,19 @@
                 this.vy = (Math.random() - 0.5) * 5;
                 this.color = color;
                 this.isStar = false;
+                this.isSupernova = false;
             }
 
             draw() {
-                if (this.isStar) {
+                if (this.isSupernova) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.shadowColor = 'yellow';
+                    ctx.shadowBlur = 50;
+                    ctx.fill();
+                    ctx.shadowBlur = 0; // Reset shadow for other objects
+                } else if (this.isStar) {
                     this.drawStar();
                 } else {
                     ctx.beginPath();
@@ -72,10 +101,7 @@
             }
 
             drawStar() {
-                // Save the current canvas state (no glow)
                 ctx.save();
-                
-                // Apply glow properties
                 ctx.shadowColor = 'white';
                 ctx.shadowBlur = 15;
                 
@@ -86,14 +112,12 @@
                 let x = this.x;
                 let y = this.y;
                 let step = Math.PI / 5;
-
                 ctx.moveTo(x, y - outerRadius);
                 for (let i = 0; i < 5; i++) {
                     x = this.x + Math.cos(rot) * outerRadius;
                     y = this.y + Math.sin(rot) * outerRadius;
                     ctx.lineTo(x, y);
                     rot += step;
-
                     x = this.x + Math.cos(rot) * innerRadius;
                     y = this.y + Math.sin(rot) * innerRadius;
                     ctx.lineTo(x, y);
@@ -104,11 +128,11 @@
                 ctx.fillStyle = 'white';
                 ctx.fill();
                 
-                // Restore the canvas state to what it was before the glow
                 ctx.restore();
             }
 
             update() {
+                // Apply mouse attraction
                 const dx = mouse.x - this.x;
                 const dy = mouse.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -118,6 +142,16 @@
                     const forceY = dy / distance * attractionStrength;
                     this.vx += forceX;
                     this.vy += forceY;
+                }
+
+                // Apply black hole gravity
+                for (const blackHole of blackHoles) {
+                    const bhDx = blackHole.x - this.x;
+                    const bhDy = blackHole.y - this.y;
+                    const bhDistance = Math.sqrt(bhDx * bhDx + bhDy * bhDy);
+                    const bhForce = blackHoleGravity / (bhDistance * bhDistance);
+                    this.vx += bhDx / bhDistance * bhForce;
+                    this.vy += bhDy / bhDistance * bhForce;
                 }
 
                 this.vx *= friction;
@@ -132,11 +166,14 @@
                 const dy = other.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < this.radius + other.radius) {
+                if (distance < this.radius + other.radius && !other.isSupernova && !this.isSupernova) {
                     this.mass += other.mass;
                     this.radius = Math.cbrt(this.mass) * 2;
 
-                    if (this.mass > 50) {
+                    if (this.mass > supernovaMassThreshold) {
+                        this.isSupernova = true;
+                        this.supernovaTimer = 60; // 60 frames for the supernova to last
+                    } else if (this.mass > starMassThreshold) {
                         this.isStar = true;
                         this.color = `hsl(60, 100%, 80%)`;
                     }
@@ -146,16 +183,35 @@
             }
         }
 
-        function drawConstellations() {
-            const stars = particles.filter(p => p.isStar);
-            if (stars.length >= minStarsForConstellation) {
+        class BlackHole {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+            }
+
+            draw() {
                 ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = 1;
-                for (let i = 0; i < stars.length; i++) {
-                    for (let j = i + 1; j < stars.length; j++) {
-                        const starA = stars[i];
-                        const starB = stars[j];
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,1)';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawConstellations() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.font = '12px sans-serif';
+
+            for (const constellation of constellations) {
+                ctx.beginPath();
+                for (let i = 0; i < constellation.stars.length; i++) {
+                    for (let j = i + 1; j < constellation.stars.length; j++) {
+                        const starA = constellation.stars[i];
+                        const starB = constellation.stars[j];
                         const distance = Math.sqrt(Math.pow(starA.x - starB.x, 2) + Math.pow(starA.y - starB.y, 2));
                         if (distance < 250) {
                             ctx.moveTo(starA.x, starA.y);
@@ -164,12 +220,41 @@
                     }
                 }
                 ctx.stroke();
+
+                // Draw constellation name
+                if (constellation.name) {
+                    const avgX = constellation.stars.reduce((sum, s) => sum + s.x, 0) / constellation.stars.length;
+                    const avgY = constellation.stars.reduce((sum, s) => sum + s.y, 0) / constellation.stars.length;
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(constellation.name, avgX, avgY - 20);
+                }
             }
         }
         
-        function createParticle() {
-             const x = Math.random() * canvas.width;
-             const y = Math.random() * canvas.height;
+        function checkAndNameConstellations() {
+            const stars = particles.filter(p => p.isStar);
+            if (stars.length >= minStarsForConstellation) {
+                const potentialConstellation = [];
+                for (const star of stars) {
+                    const isPartOfExisting = constellations.some(c => c.stars.includes(star));
+                    if (!isPartOfExisting) {
+                        potentialConstellation.push(star);
+                    }
+                }
+                if (potentialConstellation.length >= minStarsForConstellation) {
+                    const name = prompt("A new constellation has formed! What do you want to name it?");
+                    if (name) {
+                        const newConstellation = { stars: potentialConstellation, name: name };
+                        constellations.push(newConstellation);
+                    }
+                }
+            }
+        }
+
+        function createParticle(x, y) {
+             x = x || Math.random() * canvas.width;
+             y = y || Math.random() * canvas.height;
              let color;
 
              const colorChoice = Math.random();
@@ -187,7 +272,6 @@
                  const lightness = Math.floor(Math.random() * 30) + 50;
                  color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
              }
-             
              particles.push(new Particle(x, y, color));
         }
 
@@ -195,6 +279,12 @@
             if (particles.length < minParticleCount) {
                 createParticle();
             }
+        }
+
+        function updateMassDisplay() {
+            totalMass = particles.filter(p => p.isStar).reduce((sum, p) => sum + p.mass, 0) + 
+                        blackHoles.length * 500; // Add an arbitrary mass for black holes
+            massDisplay.textContent = Math.round(totalMass);
         }
 
         function init() {
@@ -208,9 +298,26 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             drawConstellations();
+            
+            for (const blackHole of blackHoles) {
+                blackHole.draw();
+            }
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const particle = particles[i];
+
+                if (particle.isSupernova) {
+                    particle.supernovaTimer--;
+                    if (particle.supernovaTimer <= 0) {
+                        blackHoles.push(new BlackHole(particle.x, particle.y, 5));
+                        for (let k = 0; k < 50; k++) {
+                            createParticle(particle.x, particle.y);
+                        }
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                }
+
                 particle.update();
                 
                 for (let j = i - 1; j >= 0; j--) {
@@ -223,6 +330,8 @@
                 particle.draw();
             }
             populateParticles();
+            updateMassDisplay();
+            checkAndNameConstellations();
             requestAnimationFrame(animate);
         }
 
