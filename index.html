@@ -46,13 +46,15 @@
         const blackHoles = [];
         const constellations = [];
 
+        let particleIdCounter = 0; // A unique ID for each particle
+
         const particleCount = 500;
         const minParticleCount = 300;
         const attractionRadius = 100;
         const attractionStrength = 0.05;
         const friction = 0.95;
         const collisionDistance = 5;
-        const starMassThreshold = 50; // New lower threshold
+        const starMassThreshold = 25; // Lowered threshold
         const supernovaMassThreshold = 200;
         const blackHoleGravity = 2000;
 
@@ -69,6 +71,7 @@
 
         class Particle {
             constructor(x, y, color) {
+                this.id = particleIdCounter++;
                 this.x = x;
                 this.y = y;
                 this.mass = 1;
@@ -185,7 +188,7 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
-                this.timer = 180; // Black hole exists for 3 seconds (180 frames)
+                this.timer = 180;
             }
 
             draw() {
@@ -205,11 +208,13 @@
             ctx.font = '12px sans-serif';
 
             for (const constellation of constellations) {
+                const constellationStars = constellation.starIds.map(id => particles.find(p => p.id === id)).filter(p => p);
+                
                 ctx.beginPath();
-                for (let i = 0; i < constellation.stars.length; i++) {
-                    for (let j = i + 1; j < constellation.stars.length; j++) {
-                        const starA = constellation.stars[i];
-                        const starB = constellation.stars[j];
+                for (let i = 0; i < constellationStars.length; i++) {
+                    for (let j = i + 1; j < constellationStars.length; j++) {
+                        const starA = constellationStars[i];
+                        const starB = constellationStars[j];
                         const distance = Math.sqrt(Math.pow(starA.x - starB.x, 2) + Math.pow(starA.y - starB.y, 2));
                         if (distance < 250) {
                             ctx.moveTo(starA.x, starA.y);
@@ -219,9 +224,9 @@
                 }
                 ctx.stroke();
 
-                if (constellation.name) {
-                    const avgX = constellation.stars.reduce((sum, s) => sum + s.x, 0) / constellation.stars.length;
-                    const avgY = constellation.stars.reduce((sum, s) => sum + s.y, 0) / constellation.stars.length;
+                if (constellation.name && constellationStars.length > 0) {
+                    const avgX = constellationStars.reduce((sum, s) => sum + s.x, 0) / constellationStars.length;
+                    const avgY = constellationStars.reduce((sum, s) => sum + s.y, 0) / constellationStars.length;
                     ctx.fillStyle = 'white';
                     ctx.textAlign = 'center';
                     ctx.fillText(constellation.name, avgX, avgY - 20);
@@ -232,17 +237,17 @@
         function checkAndNameConstellations() {
             const stars = particles.filter(p => p.isStar);
             if (stars.length >= 3) {
-                const potentialConstellation = [];
+                const potentialConstellationStars = [];
                 for (const star of stars) {
-                    const isPartOfExisting = constellations.some(c => c.stars.includes(star));
+                    const isPartOfExisting = constellations.some(c => c.starIds.includes(star.id));
                     if (!isPartOfExisting) {
-                        potentialConstellation.push(star);
+                        potentialConstellationStars.push(star);
                     }
                 }
-                if (potentialConstellation.length >= 3) {
+                if (potentialConstellationStars.length >= 3) {
                     const name = prompt("A new constellation has formed! What do you want to name it?");
                     if (name) {
-                        const newConstellation = { stars: potentialConstellation, name: name };
+                        const newConstellation = { starIds: potentialConstellationStars.map(s => s.id), name: name };
                         constellations.push(newConstellation);
                     }
                 }
@@ -274,7 +279,7 @@
 
         function populateParticles() {
             if (particles.length < minParticleCount) {
-                for(let i = 0; i < 5; i++) { // Adds 5 particles at a time
+                for(let i = 0; i < 5; i++) {
                     createParticle();
                 }
             }
